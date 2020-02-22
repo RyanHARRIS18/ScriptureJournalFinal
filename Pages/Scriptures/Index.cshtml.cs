@@ -26,64 +26,61 @@ namespace ScriptureJournal
         public string SearchString { get; set; }
 
         /*SEARCH BY BOOKS LIKE Genres*/
-        public SelectList Books { get; set; }
 
         [BindProperty(SupportsGet = true)]
-        public string AllBooks { get; set; }
-        /*  public string SortBy { get; set; }*/
 
+        public string ScriptureBook { get; set; }
+        public string Books { get; set; }
+
+        public SelectList Titles { get; set; }
+        /*  public string SortBy { get; set; }*/
         public string NameSort { get; set; }
         public string DateSort { get; set; }
-        public string CurrentFilter { get; set; }
-        public string CurrentSort { get; set; }
+        
 
-
-        public async Task OnGetAsync(string sortOrder)
+        public async Task OnGetAsync(string sortOrder, string searchString)
         {
-            IQueryable<string> bookQuery = from m in _context.Scripture
-                                           orderby m.Book
-                                            select m.Book;
-
-            var scripture = from m in _context.Scripture
-                            select m;
-
-
             NameSort = String.IsNullOrEmpty(sortOrder) ? "name_desc" : "";
             DateSort = sortOrder == "Date" ? "date_desc" : "Date";
 
-            switch (sortOrder)
+
+            IQueryable<string> titleQuery = from s in _context.Scripture
+                                          orderby s.Book
+                                          select  s.Book;
+
+            var books = from m in _context.Scripture
+                        select m;
+
+            if (!String.IsNullOrEmpty(searchString))
             {
-                case "name_desc":
-                    scripture = scripture.OrderByDescending(m => m.Book);
-                    break;
-                case "Date":
-                    scripture = scripture.OrderBy(m => m.CreationDate);
-                    break;
-                case "date_desc":
-                    scripture = scripture.OrderByDescending(m => m.CreationDate);
-                    break;
-                default:
-                    scripture = scripture.OrderBy(m => m.Book);
-                    break;
+                books = books.Where(s => s.Note.Contains(searchString));
             }
 
-            if (!string.IsNullOrEmpty(NameSort))
+            if (!String.IsNullOrEmpty(ScriptureBook))
             {
-                scripture = scripture.Where(s => s.Note.Contains(SearchString));
+                books = books.Where(s => s.Book.Contains(ScriptureBook));
             }
 
-            if (!string.IsNullOrEmpty(SearchString))
-            {
-                scripture = scripture.Where(s => s.Note.Contains(SearchString));
+            if (!string.IsNullOrEmpty(sortOrder)){
+               switch (sortOrder)
+                {
+                    case "name_desc":
+                        books = books.OrderByDescending(m => m.Book);
+                        break;
+                    case "Date":
+                        books = books.OrderBy(m => m.CreationDate);
+                        break;
+                    case "date_desc":
+                        books = books.OrderByDescending(m => m.CreationDate);
+                        break;
+                    default:
+                        books = books.OrderBy(m => m.Book);
+                        break;
+                }
             }
+            Titles = new SelectList(await titleQuery.Distinct().ToListAsync());
 
-            if (!string.IsNullOrEmpty(AllBooks))
-            {
-                scripture = scripture.Where(x => x.Book == AllBooks);
-            }
-            Scripture = await scripture.ToListAsync();
-
-            Books = new SelectList(await bookQuery.Distinct().ToListAsync());
+            Scripture = await books.AsNoTracking().ToListAsync();
 
         }
     }
